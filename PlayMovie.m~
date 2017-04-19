@@ -1,0 +1,110 @@
+function [vbl1 movie] = PlayMovie(moviename, monitor, start_t)
+%
+% PlayMovie\(moviename)
+%
+% This demo accepts a pattern for a valid moviename, e.g.,
+% moviename='*.mpg', then it plays all movies in the current working
+% directory whose names match the provided pattern, e.g., the '*.mpg'
+% pattern would play all MPEG files in the current directory.
+%
+% This demo uses automatic asynchronous playback for synchronized playback
+% of video and sound. Each movie plays until end, then rewinds and plays
+% again from the start. Pressing the Cursor-Up/Down key pauses/unpauses the
+% movie and increases/decreases playback rate.
+% The left- right arrow keys jump in 1 seconds steps. SPACE jumps to the
+% next movie in the list. ESC ends the demo.
+%
+% This demo needs MacOS-X 10.3.9 or 10.4.x with Quicktime-7 installed!
+
+% History:
+% 10/30/05  mk  Wrote it.
+% 1/31/12 krh modified without keypresses
+% 4/2/12 krh modified for dynamic localizer presentation
+
+% Child protection
+AssertOpenGL;
+
+% Retrieve duration of a single video refresh interval:
+%ifi = Screen('GetFlipInterval', monitor.display_window);
+% 
+% % Clear screen to background color:
+% Screen('FillRect', monitor.display_window, monitor.white);
+% 
+% % Initial display and sync to timestamp:
+% vbl=Screen('Flip',monitor.display_window);
+
+% Open movie file and retrieve basic info about movie:
+[movieptr movie.movieduration movie.fps movie.imgw movie.imgh] = Screen('OpenMovie', monitor.display_window, moviename);
+
+i=0;
+%pts = [];
+
+% % Seek to start of movie (timeindex 0):
+% Screen('SetMovieTimeIndex', movieptr, 0, 1);
+%
+% % Start playback of movie. This will start
+% % the realtime playback clock and playback of audio tracks, if any.
+% % Play 'movie', at a playbackrate = 1, with endless loop=1 and
+% % 1.0 == 100% audio volume.
+% Screen('PlayMovie', movieptr, rate, 0, 1.0);
+
+mov_start = GetSecs; % Start time
+
+% Infinite playback loop: Fetch video frames and display them...
+while(1)
+    
+    i=i+1;
+    
+    % Return next frame in movie, in sync with current playback
+    % time and sound.
+    % tex either the texture handle or zero if no new frame is
+    % ready yet. pts = Presentation timestamp in seconds.
+    [tex timeindex] = Screen('GetMovieImage', monitor.display_window, movieptr, 1, [], [], 0); % Output timeindex
+
+    % Clipping off last .5 seconds because of encoding issues at end of
+    % movie and to avoid overlap with next presentation
+    if timeindex >= movie.movieduration - 0.5
+        break;
+    end
+
+    % Draw the new texture immediately to screen:
+    Screen('DrawTexture', monitor.display_window, tex);
+
+    % Update display (if first, start at appropriate time only)
+    if i == 1
+        vbl1=Screen('Flip', monitor.display_window, start_t); % Start first flip at corresponding to timing vector
+        %pts(i) = vbl1 - mov_start;
+    else
+        vbl=Screen('Flip', monitor.display_window, start_t+timeindex, [], 1 ); % Process subsequent flips according to timeindex, but do not have MatLab wait for execution (timestamps are invalid)
+        %pts(i) = vbl - mov_start;
+    end % End if: i == 1
+
+    % Release texture:
+    Screen('Close', tex);
+ 
+end % End while(1)
+
+mov_end = GetSecs-mov_start
+
+%movie.pts = pts;
+
+% % Done. Stop playback:
+% Screen('PlayMovie', movieptr, 0);
+
+% Close movie object:
+Screen('CloseMovie', movieptr);
+
+% % Closes all windows.
+% Screen('CloseAll');
+% 
+% % Restores the mouse cursor and MatLab command input.
+% ShowCursor;
+% ListenChar(0);
+% 
+% % Restore preferences
+% Screen('Preference', 'VisualDebugLevel', monitor.oldVisualDebugLevel);
+% Screen('Preference', 'SuppressAllWarnings', monitor.oldSupressAllWarnings);
+% Screen('Preference', 'SkipSyncTests', monitor.oldEnableFlag);
+
+% Done.
+return;
